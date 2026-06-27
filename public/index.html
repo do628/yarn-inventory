@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>毛线库存管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",sans-serif;background:#f2f2f7;color:#222;min-height:100vh}
+.tabbar{position:sticky;bottom:0;background:#fff;border-top:1px solid #e0e0e0;display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;text-align:center;padding:8px 4px 4px;border:none;background:none;font-size:11px;color:#999;cursor:pointer}
+.tab .icon{display:block;font-size:20px;margin-bottom:2px}
+.tab.active{color:#7C3AED}
+.header{background:#7C3AED;color:#fff;padding:12px 16px;position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:17px;font-weight:600}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.sync-dot.ok{background:#34D399}.sync-dot.saving{background:#FBBF24;animation:pulse .8s infinite}.sync-dot.off{background:#EF4444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.page{display:none;padding:12px 16px 80px}.page.active{display:block}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-row{display:flex;gap:12px;margin-bottom:12px}.card-row .card{flex:1;margin-bottom:0}
+.stat-value{font-size:26px;font-weight:700;margin:4px 0}.stat-label{font-size:12px;color:#999}.stat-sub{font-size:11px;color:#999;margin-top:2px}
+.section-title{font-size:15px;font-weight:600;margin:16px 0 10px}
+.alert-item{padding:10px 12px;border-radius:8px;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px}
+.alert-warn{background:#FFF8E1;border-left:3px solid #F59E0B}.alert-danger{background:#FEF2F2;border-left:3px solid #EF4444}
+.btn{padding:10px 16px;border:none;border-radius:10px;font-size:14px;cursor:pointer;font-weight:500;transition:all .15s}
+.btn:active{transform:scale(.97)}.btn-primary{background:#7C3AED;color:#fff}.btn-success{background:#10B981;color:#fff}
+.btn-warning{background:#F59E0B;color:#fff}.btn-danger{background:#EF4444;color:#fff}
+.btn-outline{background:#fff;color:#7C3AED;border:1px solid #7C3AED}.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}.btn-block{display:block;width:100%;text-align:center}.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+.form-group{margin-bottom:12px}.form-group label{display:block;font-size:13px;color:#666;margin-bottom:4px;font-weight:500}
+.form-group input,.form-group select{width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:10px;font-size:15px;outline:none;background:#fff;-webkit-appearance:none}
+.form-group input:focus,.form-group select:focus{border-color:#7C3AED}
+.form-row{display:flex;gap:10px}.form-row .form-group{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid #f0f0f0}
+th{background:#f8f8f8;font-weight:600;color:#555;font-size:12px}
+tr:active{background:#f8f4ff}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.tag-in{background:#D1FAE5;color:#065F46}.tag-out{background:#FEE2E2;color:#991B1B}
+.stock-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px}
+.stock-table-wrap table{min-width:600px}
+.empty{padding:40px 16px;text-align:center;color:#bbb;font-size:14px}
+.quick-row{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:wrap;margin-bottom:10px}
+.quick-chip{flex-shrink:0;padding:6px 12px;border-radius:16px;border:1px solid #e0e0e0;background:#fff;font-size:13px;cursor:pointer;white-space:nowrap}
+.quick-chip:active,.quick-chip.selected{background:#7C3AED;color:#fff;border-color:#7C3AED}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;padding:20px 16px 24px}
+.modal h3{font-size:16px;margin-bottom:16px}.modal-btns{display:flex;gap:8px;margin-top:16px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#EDE9FE;color:#6D28D9;margin-right:4px}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s}.toast.show{opacity:1}
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:500;font-size:15px;color:#7C3AED}
+.unit-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:13px}
+.unit-row span{flex:1}.unit-row input{width:80px;padding:4px 8px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;text-align:center}
+.unit-row input:focus{border-color:#7C3AED}
+.check-label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.toggle-group{display:flex;background:#f0f0f0;border-radius:8px;overflow:hidden}
+.toggle-btn{flex:1;padding:8px;border:none;background:none;font-size:13px;cursor:pointer;transition:.15s}
+.toggle-btn.active{background:#7C3AED;color:#fff}
+.sel-search{position:relative}
+.sel-search input{width:100%}
+.sel-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d9d9d9;border-radius:0 0 10px 10px;max-height:200px;overflow-y:auto;z-index:10;display:none}
+.sel-dropdown.show{display:block}
+.sel-dropdown div{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid #f5f5f5}
+.sel-dropdown div:hover{background:#f8f4ff}
+.sel-dropdown .custom{padding:10px 12px;color:#7C3AED;font-weight:600}
+@media(min-width:768px){.page{max-width:640px;margin:0 auto}.tabbar{justify-content:center;gap:40px}.tab{flex:0}.modal{border-radius:16px;margin:auto}.modal-mask{align-items:center}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧶 毛线库存管理</h1>
+  <span style="font-size:12px;display:flex;align-items:center;gap:8px">
+    <span><span class="sync-dot off" id="sync-dot"></span><span id="sync-text">离线</span></span>
+    <button class="btn btn-xs" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="backupData()">💾备份</button>
+  </span>
+</div>
+
+<div class="loading-overlay" id="loading"><div>⏳ 加载中...</div></div>
+
+<div id="app">
+<!-- 仪表盘 -->
+<div class="page active" id="pg-dashboard">
+  <div class="card-row" id="stat-cards"></div>
+  <div id="alert-section"></div>
+  <div class="section-title">📋 最近操作</div>
+  <div id="recent-list"></div>
+</div>
+
+<!-- 库存总览 -->
+<div class="page" id="pg-stock">
+  <div class="quick-row">
+    <select id="stock-cat-filter" onchange="renderStock()" style="padding:8px 12px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px"><option value="">全部品类</option></select>
+    <input type="text" id="stock-search" placeholder="搜型号/颜色" oninput="renderStock()" style="padding:8px 12px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px;width:130px">
+  </div>
+  <div class="stock-table-wrap"><table><thead><tr><th>品类</th><th>型号</th><th>颜色</th><th>规格</th><th>库存</th><th>总kg</th><th>安全</th><th>状态</th></tr></thead><tbody id="stock-tbody"></tbody></table></div>
+</div>
+
+<!-- 入库 -->
+<div class="page" id="pg-inbound">
+  <div class="card">
+    <div class="form-group"><label>选择产品</label><div class="sel-search"><input type="text" id="in-search" placeholder="搜索型号/颜色..." oninput="searchProd('in')" onfocus="searchProd('in')"><div class="sel-dropdown" id="in-dd"></div></div></div>
+    <div id="in-prod-info" style="font-size:12px;color:#999;margin-bottom:8px;display:none"></div>
+    <div class="form-row">
+      <div class="form-group"><label>入库数量</label><input type="number" id="in-qty" min="0.001" step="0.001" placeholder="0" oninput="calcIn()"></div>
+      <div class="form-group"><label>包装单位</label><select id="in-unit" onchange="onInUnitChange()"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>规格</label><input type="text" id="in-kg" readonly style="background:#f8f4ff;font-weight:600"></div>
+      <div class="form-group"><label>重量显示</label><div class="toggle-group"><button class="toggle-btn active" onclick="setWeightUnit('kg',this)">kg</button><button class="toggle-btn" onclick="setWeightUnit('g',this)">g</button></div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>单价(元/kg)</label><input type="number" id="in-price" step="0.01" placeholder="选填" oninput="calcInAmt()"></div>
+      <div class="form-group"><label>金额(元)</label><input type="text" id="in-amt" readonly style="background:#f8f4ff"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="in-date"></div><div class="form-group"><label>经办人</label><input type="text" id="in-operator" placeholder="选填"></div></div>
+    <div class="form-group"><label>备注</label><input type="text" id="in-notes" placeholder="选填"></div>
+    <button class="btn btn-success btn-block" onclick="doInbound()">✅ 确认入库</button>
+  </div>
+</div>
+
+<!-- 出库 -->
+<div class="page" id="pg-outbound">
+  <div class="card">
+    <div class="form-group"><label>选择产品</label><div class="sel-search"><input type="text" id="out-search" placeholder="搜索型号/颜色..." oninput="searchProd('out')" onfocus="searchProd('out')"><div class="sel-dropdown" id="out-dd"></div></div></div>
+    <div id="out-prod-info" style="font-size:12px;color:#999;margin-bottom:8px;display:none"></div>
+    <div class="form-row">
+      <div class="form-group"><label>出库数量</label><input type="number" id="out-qty" min="0.001" step="0.001" placeholder="0" oninput="calcOut()"></div>
+      <div class="form-group"><label>包装单位</label><select id="out-unit" onchange="onOutUnitChange()"></select></div>
+    </div>
+    <div class="form-group"><label>规格</label><input type="text" id="out-kg" readonly style="background:#f8f4ff;font-weight:600"></div>
+    <div class="form-row"><div class="form-group"><label>客户</label><div class="sel-search"><input type="text" id="out-customer" placeholder="搜索或输入新客户" oninput="searchCust()" onfocus="searchCust()"><div class="sel-dropdown" id="cust-dd"></div></div></div><div class="form-group"><label>类型</label><select id="out-type"><option>销售出库</option><option>损耗出库</option><option>退货出库</option><option>其他出库</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label>日期</label><input type="date" id="out-date"></div><div class="form-group"><label>经办人</label><input type="text" id="out-operator" placeholder="选填"></div></div>
+    <div class="form-group"><label>备注</label><input type="text" id="out-notes" placeholder="选填"></div>
+    <button class="btn btn-warning btn-block" onclick="doOutbound()">📤 确认出库</button>
+  </div>
+</div>
+
+<!-- 记录 -->
+<div class="page" id="pg-history">
+  <div class="quick-row">
+    <select id="hist-prod" onchange="renderHistory()" style="padding:8px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px"><option value="">全部产品</option></select>
+    <select id="hist-type" onchange="renderHistory()" style="padding:8px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px"><option value="">全部</option><option value="in">入库</option><option value="out">出库</option></select>
+    <input type="date" id="hist-from" onchange="renderHistory()" style="padding:8px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px;width:115px">
+    <input type="date" id="hist-to" onchange="renderHistory()" style="padding:8px;border:1px solid #d9d9d9;border-radius:8px;font-size:13px;width:115px">
+  </div>
+  <div class="quick-row">
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('in')">📥 导出入库表</button>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('out')">📤 导出出库表</button>
+  </div>
+  <div class="stock-table-wrap"><table><thead><tr><th>日期</th><th>类型</th><th>产品</th><th>数量</th><th>kg</th><th>客户</th><th>备注</th><th></th></tr></thead><tbody id="hist-tbody"></tbody></table></div>
+</div>
+
+<!-- 产品管理 -->
+<div class="page" id="pg-products">
+  <div class="quick-row">
+    <button class="btn btn-primary btn-sm" onclick="showProdModal()">+ 添加产品</button>
+    <button class="btn btn-outline btn-sm" onclick="startBatchEdit()">📝 批量编辑</button>
+    <button class="btn btn-outline btn-sm" onclick="exportProductsCSV()">📥 导出列表</button>
+  </div>
+  <div class="quick-row" id="cat-chips"></div>
+  <div id="batch-bar" style="display:none;background:#7C3AED;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:13px;display:none;align-items:center;justify-content:space-between">
+    <span>已选 <b id="batch-count">0</b> 个产品</span>
+    <div><button class="btn btn-xs" style="background:rgba(255,255,255,.3);color:#fff;border:none;margin-right:4px" onclick="batchEditSelected()">批量修改</button><button class="btn btn-xs" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="clearBatch()">取消</button></div>
+  </div>
+  <div id="prod-list"></div>
+</div>
+</div>
+
+<div class="tabbar">
+  <button class="tab active" data-pg="dashboard"><span class="icon">📊</span>总览</button>
+  <button class="tab" data-pg="stock"><span class="icon">📦</span>库存</button>
+  <button class="tab" data-pg="inbound"><span class="icon">📥</span>入库</button>
+  <button class="tab" data-pg="outbound"><span class="icon">📤</span>出库</button>
+  <button class="tab" data-pg="history"><span class="icon">📋</span>记录</button>
+  <button class="tab" data-pg="products"><span class="icon">⚙️</span>产品</button>
+</div>
+
+<div class="modal-mask" id="prod-modal" style="display:none">
+  <div class="modal">
+    <h3 id="prod-modal-title">添加产品</h3>
+    <div class="form-group"><label>毛线品类</label><div class="sel-search"><input type="text" id="prod-cat" placeholder="搜索或输入新品类..." oninput="searchCat()" onfocus="searchCat()"><div class="sel-dropdown" id="cat-dd"></div></div></div>
+    <div class="form-row"><div class="form-group"><label>型号 *</label><input type="text" id="prod-model" placeholder="如104、01（蛋糕线）"></div><div class="form-group"><label>颜色</label><input type="text" id="prod-color" placeholder="如小丑鱼、海盐奶盖"></div></div>
+    <div class="form-group"><label>包装单位（从上到下为从大到小，可自定义添加）</label>
+      <div id="prod-units" style="background:#f8f8f8;border-radius:8px;padding:8px;margin-top:4px"></div>
+      <button class="btn btn-outline btn-sm" style="margin-top:6px;width:100%" onclick="addUnitRow()">+ 添加单位</button>
+    </div>
+    <div class="form-group"><label>安全库存</label><input type="number" id="prod-safety" min="0" step="0.01" placeholder="低于此数量预警"></div>
+    <div class="modal-btns"><button class="btn btn-outline" style="flex:1" onclick="closeProdModal()">取消</button><button class="btn btn-primary" style="flex:1" id="prod-save-btn" onclick="saveProd()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="batch-modal" style="display:none">
+  <div class="modal"><h3>批量修改</h3>
+    <div class="form-group"><label>修改品类</label><div class="sel-search"><input type="text" id="batch-cat" placeholder="不改则留空" oninput="searchBatchCat()" onfocus="searchBatchCat()"><div class="sel-dropdown" id="batch-cat-dd"></div></div></div>
+    <div class="form-group"><label>包装单位（填入覆盖所有已选产品）</label><div id="batch-units" style="background:#f8f8f8;border-radius:8px;padding:8px"></div><button class="btn btn-outline btn-sm" style="margin-top:6px;width:100%" onclick="addBatchUnitRow()">+ 添加单位</button></div>
+    <div class="form-group"><label>安全库存</label><input type="number" id="batch-safety" placeholder="不改则留空" min="0" step="0.01"></div>
+    <div class="modal-btns"><button class="btn btn-outline" style="flex:1" onclick="closeBatchModal()">取消</button><button class="btn btn-primary" style="flex:1" onclick="saveBatch()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="txn-modal" style="display:none">
+  <div class="modal"><h3>编辑记录</h3>
+    <div class="form-row"><div class="form-group"><label>数量</label><input type="number" id="etxn-qty" step="0.001"></div><div class="form-group"><label>kg</label><input type="text" id="etxn-kg" readonly style="background:#f8f8f8"></div></div>
+    <div class="form-row"><div class="form-group"><label>客户</label><input type="text" id="etxn-cust"></div><div class="form-group"><label>经办人</label><input type="text" id="etxn-op"></div></div>
+    <div class="form-group"><label>备注</label><input type="text" id="etxn-notes"></div>
+    <div class="modal-btns"><button class="btn btn-outline" style="flex:1" onclick="closeTxnModal()">取消</button><button class="btn btn-danger btn-sm" onclick="delTxn()">删除</button><button class="btn btn-primary" style="flex:1" onclick="saveTxn()">保存</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var API = '/api/data';
+var data = {prods:[],txns:[],categories:[],customers:[],pid:1,tid:1};
+var batchIds = [];
+var _editPid = null, _editTid = null;
+var _weightMode = 'kg';
+
+function today(){return new Date().toISOString().split('T')[0]}
+
+async function fetchData(){
+  try{var r=await fetch(API);data=await r.json();setSync('ok','已同步')}catch(e){setSync('off','离线')}
+}
+async function saveData(silent){
+  setSync('saving','保存中...');
+  try{var r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var j=await r.json();if(j.ok)setSync('ok','已同步');else setSync('off','保存失败')}catch(e){setSync('off','离线')}
+}
+function setSync(cls,txt){var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');d.className='sync-dot '+cls;t.textContent=txt}
+function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show')},2000)}
+
+function P(id){return data.prods.find(p=>p.id===id)}
+
+function stockQty(pid){var ins=data.txns.filter(t=>t.pid===pid&&t.type==='in').reduce((s,t)=>s+(t.qty||0),0);var outs=data.txns.filter(t=>t.pid===pid&&t.type==='out').reduce((s,t)=>s+(t.qty||0),0);return ins-outs}
+function stockKg(pid){return data.txns.filter(t=>t.pid===pid&&t.type==='in').reduce((s,t)=>s+(t.kg||0),0)-data.txns.filter(t=>t.pid===pid&&t.type==='out').reduce((s,t)=>s+(t.kg||0),0)}
+
+function getBaseWeight(p){if(p.units&&p.units.length){var u=p.units[0];return u.weight||0}return p.unitwt||0}
+
+document.querySelectorAll('.tab').forEach(b=>b.onclick=function(){navTo(this.dataset.pg)});
+function navTo(pg){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelector('.tab[data-pg='+pg+']').classList.add('active');
+  document.getElementById('pg-'+pg).classList.add('active');
+  var fn=(window['render_'+pg]||function(){});
+  fn();
+}
+
+function init(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('in-date').value=today();
+  document.getElementById('out-date').value=today();
+  render_dashboard();
+}
+
+// ==== 仪表盘 ====
+function render_dashboard(){
+  var prods=data.prods,totalKg=prods.reduce((s,p)=>s+stockKg(p.id),0);
+  var alerts=[];prods.forEach(p=>{var sq=stockQty(p.id);if(sq<=0)alerts.push({l:'danger',m:p.model+' '+p.color+' 缺货'});else if(sq<=p.safety)alerts.push({l:'warn',m:p.model+' '+p.color+' 库存不足('+sq.toFixed(1)+'≤'+p.safety+')'})});
+  document.getElementById('stat-cards').innerHTML=
+    '<div class="card"><div class="stat-label">产品数</div><div class="stat-value" style="color:#7C3AED">'+prods.length+'</div></div>'+
+    '<div class="card"><div class="stat-label">总库存(kg)</div><div class="stat-value" style="color:#3B82F6">'+totalKg.toFixed(1)+'</div></div>'+
+    '<div class="card"><div class="stat-label">预警产品</div><div class="stat-value" style="color:'+(alerts.length?'#EF4444':'#10B981')+'">'+alerts.length+'</div></div>';
+  document.getElementById('alert-section').innerHTML=alerts.length?
+    '<div class="section-title">⚠️ 库存预警</div>'+alerts.map(a=>'<div class="alert-item alert-'+a.l+'">'+(a.l==='danger'?'🔴':'🟡')+' '+a.m+'</div>').join(''):
+    '<div class="section-title">✅ 库存充足</div><div class="empty">所有产品库存正常</div>';
+  var recent=[...data.txns].reverse().slice(0,8);
+  document.getElementById('recent-list').innerHTML=recent.length?recent.map(t=>{
+    var p=P(t.pid),pn=p?p.cat+' · '+p.model+' '+p.color:'已删除';
+    return '<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between"><span><span class="tag '+(t.type==='in'?'tag-in':'tag-out')+'">'+(t.type==='in'?'入库':(t.outType||'出库'))+'</span> '+pn+'</span><span style="font-size:12px;color:#999">'+t.date+'</span></div><div style="font-size:13px;margin-top:4px">'+t.qty+' '+t.unit+' | '+t.kg.toFixed(2)+'kg'+(t.customer?' | '+t.customer:'')+'</div></div>'
+  }).join(''):'<div class="empty">暂无记录</div>';
+  renderStock();renderHistory();
+}
+
+// ==== 库存总览 ====
+function renderStock(){
+  var sel=document.getElementById('stock-cat-filter'),cats=[...new Set(data.prods.map(p=>p.cat))];
+  var cur=sel.value;sel.innerHTML='<option value="">全部品类</option>'+cats.map(c=>'<option value="'+c+'"'+(c===cur?' selected':'')+'>'+c+'</option>').join('')
+  var fcat=sel.value,fsearch=(document.getElementById('stock-search').value||'').toLowerCase();
+  var prods=data.prods.filter(p=>!fcat||p.cat===fcat).filter(p=>!fsearch||p.model.toLowerCase().includes(fsearch)||p.color.toLowerCase().includes(fsearch));
+  document.getElementById('stock-tbody').innerHTML=prods.length?prods.map(p=>{
+    var sq=stockQty(p.id),sk=stockKg(p.id),st='<span style="color:#10B981">正常</span>';
+    if(sq<=0)st='<span style="color:#EF4444;font-weight:600">缺货</span>';else if(sq<=p.safety)st='<span style="color:#F59E0B;font-weight:600">预警</span>';
+    var bw=getBaseWeight(p);var spec=p.units&&p.units.length?p.units.map(u=>u.unit+'='+u.weight+'kg').join(' / '):(bw+' kg');
+    return '<tr><td><span class="badge">'+p.cat+'</span></td><td>'+p.model+'</td><td>'+p.color+'</td><td>'+spec+'</td><td>'+sq.toFixed(2)+'</td><td>'+sk.toFixed(2)+'</td><td>'+p.safety+'</td><td>'+st+'</td></tr>'
+  }).join(''):'<tr><td colspan="8" class="empty">暂无产品</td></tr>'
+}
+
+// ==== 品类搜索 ====
+function searchCat(){var v=(document.getElementById('prod-cat').value||'').toLowerCase();var dd=document.getElementById('cat-dd'),cats=data.categories;if(!cats.length)cats=['普通毛线','蛋糕线','冰条线(一团)','冰条线(两团)','冰条线(三团)','冰条线(四团)','羊毛线','抹布'];var f=cats.filter(c=>c.toLowerCase().includes(v));dd.innerHTML=f.map(c=>'<div onclick="selectCat(\''+c+'\')">'+c+'</div>').join('')+'<div class="custom" onclick="selectCat(\''+v+'\')">✚ 自定义: '+v+'</div>';dd.classList.add('show')}
+function selectCat(c){document.getElementById('prod-cat').value=c;document.getElementById('cat-dd').classList.remove('show')}
+function searchBatchCat(){var v=(document.getElementById('batch-cat').value||'').toLowerCase(),dd=document.getElementById('batch-cat-dd'),cats=data.categories;if(!cats.length)cats=['普通毛线','蛋糕线','冰条线(一团)','冰条线(两团)','冰条线(三团)','冰条线(四团)','羊毛线','抹布'];dd.innerHTML=cats.filter(c=>c.toLowerCase().includes(v)).map(c=>'<div onclick="document.getElementById(\'batch-cat\').value=\''+c+'\';dd.classList.remove(\'show\')">'+c+'</div>').join('')+'<div class="custom" onclick="document.getElementById(\'batch-cat\').value=\''+v+'\';dd.classList.remove(\'show\')">✚ 自定义: '+v+'</div>';dd.classList.add('show')}
+
+// ==== 产品搜索 ====
+function searchProd(type){
+  var v=(document.getElementById(type+'-search').value||'').toLowerCase(),dd=document.getElementById(type+'-dd');
+  var ps=data.prods.filter(p=>p.model.toLowerCase().includes(v)||p.color.toLowerCase().includes(v)||p.cat.toLowerCase().includes(v)).slice(0,20);
+  dd.innerHTML=ps.map(p=>'<div onclick="selectProd(\''+type+'\','+p.id+')">'+p.cat+' · '+p.model+' '+p.color+' ('+stockQty(p.id).toFixed(1)+')</div>').join('');
+  if(!ps.length)dd.innerHTML='<div style="padding:10px;color:#999">未找到匹配产品</div>';
+  dd.classList.add('show')
+}
+function selectProd(type,pid){
+  var p=P(pid);document.getElementById(type+'-search').value=p.cat+' · '+p.model+' '+p.color;
+  document.getElementById(type+'-dd').classList.remove('show');
+  window['_sel'+type]=pid;updateProdInfo(type);renderUnitSelect(type)
+}
+function updateProdInfo(type){var pid=window['_sel'+type],p=P(pid),el=document.getElementById(type+'-prod-info');if(!p){el.style.display='none';return}el.style.display='block';el.textContent='品类: '+p.cat+' | 库存: '+stockQty(pid).toFixed(2)+' | '+stockKg(pid).toFixed(2)+'kg'}
+function renderUnitSelect(type){
+  var pid=window['_sel'+type],p=P(pid),sel=document.getElementById(type+'-unit');
+  sel.innerHTML='';
+  if(!p||!p.units||!p.units.length){sel.innerHTML='<option value="">无单位</option>';return}
+  p.units.forEach((u,i)=>{var w=u.weight,label=u.unit+(w?' ('+w+'kg)':'');sel.innerHTML+='<option value="'+i+'">'+label+'</option>'})
+  sel.value='0';
+  if(type==='in'){calcIn()}else{calcOut()}
+}
+function onInUnitChange(){calcIn()}function onOutUnitChange(){calcOut()}
+
+function calcIn(){
+  var pid=window._selIn,p=P(pid);if(!p||!p.units)return;var idx=parseInt(document.getElementById('in-unit').value)||0;var u=p.units[idx];var qty=parseFloat(document.getElementById('in-qty').value)||0;var kg=qty*u.weight;document.getElementById('in-kg').value=_weightMode==='g'?(kg*1000).toFixed(0)+'g':kg.toFixed(3)+' kg';calcInAmt()
+}
+function calcInAmt(){var pid=window._selIn,p=P(pid);if(!p||!p.units)return;var idx=parseInt(document.getElementById('in-unit').value)||0;var u=p.units[idx];var qty=parseFloat(document.getElementById('in-qty').value)||0;var kg=qty*u.weight;var price=parseFloat(document.getElementById('in-price').value)||0;document.getElementById('in-amt').value=(kg*price).toFixed(2)}
+function calcOut(){var pid=window._selOut,p=P(pid);if(!p||!p.units)return;var idx=parseInt(document.getElementById('out-unit').value)||0;var u=p.units[idx];var qty=parseFloat(document.getElementById('out-qty').value)||0;document.getElementById('out-kg').value=(qty*u.weight).toFixed(3)+' kg'}
+
+function setWeightUnit(mode,btn){
+  _weightMode=mode;var par=btn.parentElement;par.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');calcIn()
+}
+
+// ==== 入库 ====
+async function doInbound(){
+  var pid=window._selIn;if(!pid){toast('请选择产品');return}
+  var p=P(pid);var idx=parseInt(document.getElementById('in-unit').value)||0;var u=p.units[idx];
+  var qty=parseFloat(document.getElementById('in-qty').value);if(!qty||qty<=0){toast('请输入数量');return}
+  var kg=qty*u.weight,price=parseFloat(document.getElementById('in-price').value)||0,amt=parseFloat(document.getElementById('in-amt').value)||0;
+  var date=document.getElementById('in-date').value||today(),op=document.getElementById('in-operator').value.trim(),notes=document.getElementById('in-notes').value.trim();
+  data.txns.push({id:data.tid++,pid,type:'in',date,qty,unit:u.unit,unitwt:u.weight,kg,price,amt,customer:'',operator:op,notes,outType:''});
+  await saveData();toast('入库成功！+'+kg.toFixed(2)+'kg');
+  document.getElementById('in-qty').value='';document.getElementById('in-kg').value='';document.getElementById('in-amt').value='';document.getElementById('in-price').value='';document.getElementById('in-notes').value='';document.getElementById('in-search').value='';window._selIn=null;document.getElementById('in-prod-info').style.display='none';document.getElementById('in-unit').innerHTML='';
+  navTo('dashboard')
+}
+
+// ==== 出库 ====
+function searchCust(){var v=(document.getElementById('out-customer').value||'').toLowerCase(),dd=document.getElementById('cust-dd'),cs=data.customers||[];var f=cs.filter(c=>c.toLowerCase().includes(v)).slice(0,10);dd.innerHTML=f.map(c=>'<div onclick="document.getElementById(\'out-customer\').value=\''+c+'\';dd.classList.remove(\'show\')">'+c+'</div>').join('');if(v&&!f.includes(v))dd.innerHTML+='<div class="custom" onclick="document.getElementById(\'out-customer\').value=\''+v+'\';dd.classList.remove(\'show\')">✚ 新客户: '+v+'</div>';dd.classList.add('show')}
+
+async function doOutbound(){
+  var pid=window._selOut;if(!pid){toast('请选择产品');return}
+  var p=P(pid);var idx=parseInt(document.getElementById('out-unit').value)||0;var u=p.units[idx];
+  var qty=parseFloat(document.getElementById('out-qty').value);if(!qty||qty<=0){toast('请输入数量');return}
+  if(qty>stockQty(pid)){toast('库存不足！当前仅剩 '+stockQty(pid).toFixed(2));return}
+  var kg=qty*u.weight,cust=document.getElementById('out-customer').value.trim(),otype=document.getElementById('out-type').value;
+  var date=document.getElementById('out-date').value||today(),op=document.getElementById('out-operator').value.trim(),notes=document.getElementById('out-notes').value.trim();
+  if(cust&&!data.customers.includes(cust))data.customers.push(cust);
+  data.txns.push({id:data.tid++,pid,type:'out',date,qty,unit:u.unit,unitwt:u.weight,kg,price:0,amt:0,customer:cust,operator:op,notes,outType:otype});
+  await saveData();toast('出库成功！-'+kg.toFixed(2)+'kg');
+  document.getElementById('out-qty').value='';document.getElementById('out-kg').value='';document.getElementById('out-notes').value='';document.getElementById('out-customer').value='';document.getElementById('out-search').value='';window._selOut=null;document.getElementById('out-prod-info').style.display='none';document.getElementById('out-unit').innerHTML='';
+  navTo('dashboard')
+}
+
+// ==== 记录 ====
+function renderHistory(){
+  var txns=[...data.txns].reverse(),pid=document.getElementById('hist-prod').value,type=document.getElementById('hist-type').value;
+  var from=document.getElementById('hist-from').value,to=document.getElementById('hist-to').value;
+  if(pid)txns=txns.filter(t=>t.pid===parseInt(pid));if(type)txns=txns.filter(t=>t.type===type);
+  if(from)txns=txns.filter(t=>t.date>=from);if(to)txns=txns.filter(t=>t.date<=to);
+  var prods=data.prods.map(p=>'<option value="'+p.id+'">'+p.cat+' · '+p.model+' '+p.color+'</option>').join('');
+  document.getElementById('hist-prod').innerHTML='<option value="">全部产品</option>'+prods;
+  document.getElementById('hist-tbody').innerHTML=txns.length?txns.map(t=>{var p=P(t.pid),pn=p?p.model+' '+p.color:'已删除';return '<tr><td>'+t.date+'</td><td><span class="tag '+(t.type==='in'?'tag-in':'tag-out')+'">'+(t.type==='in'?'入库':(t.outType||'出库'))+'</span></td><td>'+pn+'</td><td>'+t.qty+' '+t.unit+'</td><td>'+t.kg.toFixed(2)+'</td><td>'+t.customer+'</td><td>'+t.notes+'</td><td><button class="btn btn-outline btn-xs" onclick="editTxn('+t.id+')">编辑</button></td></tr>'}).join(''):'<tr><td colspan="8" class="empty">暂无记录</td></tr>'
+}
+
+function editTxn(tid){var t=data.txns.find(x=>x.id===tid);if(!t)return;_editTid=tid;document.getElementById('txn-modal').style.display='flex';document.getElementById('etxn-qty').value=t.qty;document.getElementById('etxn-kg').value=t.kg.toFixed(3)+' kg';document.getElementById('etxn-cust').value=t.customer||'';document.getElementById('etxn-op').value=t.operator||'';document.getElementById('etxn-notes').value=t.notes||''}
+function closeTxnModal(){document.getElementById('txn-modal').style.display='none';_editTid=null}
+async function saveTxn(){var t=data.txns.find(x=>x.id===_editTid);if(!t)return;t.qty=parseFloat(document.getElementById('etxn-qty').value)||0;t.kg=t.qty*t.unitwt;t.customer=document.getElementById('etxn-cust').value.trim();t.operator=document.getElementById('etxn-op').value.trim();t.notes=document.getElementById('etxn-notes').value.trim();await saveData();closeTxnModal();renderHistory();render_dashboard()}
+async function delTxn(){if(!confirm('确定删除这条记录？'))return;data.txns=data.txns.filter(x=>x.id!==_editTid);await saveData();closeTxnModal();renderHistory();render_dashboard()}
+
+// ==== 产品管理 ====
+function render_products(){
+  var cats=[...new Set(data.prods.map(p=>p.cat))];window._selCat=window._selCat||'';
+  document.getElementById('cat-chips').innerHTML='<span class="quick-chip'+(window._selCat?'':' selected')+'" onclick="window._selCat=\'\';render_products()">全部</span>'+cats.map(c=>'<span class="quick-chip'+(window._selCat===c?' selected':'')+'" onclick="window._selCat=\''+c+'\';render_products()">'+c+'</span>').join('');
+  var prods=window._selCat?data.prods.filter(p=>p.cat===window._selCat):data.prods;
+  document.getElementById('prod-list').innerHTML=prods.length?prods.map(p=>'<div class="card" style="padding:12px"><label class="check-label" style="margin-bottom:6px"><input type="checkbox" onchange="toggleBatch('+p.id+')" '+(batchIds.includes(p.id)?'checked':'')+'> <span class="badge">'+p.cat+'</span> <strong>'+p.model+'</strong> '+p.color+'</label><div style="font-size:12px;color:#999">'+(p.units||[]).map(u=>'1'+u.unit+'='+u.weight+'kg').join(' → ')+' | 库存:'+stockQty(p.id).toFixed(2)+' | '+stockKg(p.id).toFixed(2)+'kg | 安全:'+p.safety+'</div><div style="margin-top:6px"><button class="btn btn-outline btn-xs" onclick="showProdModal('+p.id+')">编辑</button> <button class="btn btn-danger btn-xs" onclick="delProd('+p.id+')">删除</button></div></div>'):'<div class="empty">暂无产品</div>';
+  updateBatchBar()
+}
+function toggleBatch(id){var i=batchIds.indexOf(id);if(i>=0)batchIds.splice(i,1);else batchIds.push(id);updateBatchBar()}
+function updateBatchBar(){var bar=document.getElementById('batch-bar');bar.style.display=batchIds.length?'flex':'none';document.getElementById('batch-count').textContent=batchIds.length}
+function clearBatch(){batchIds=[];updateBatchBar();render_products()}
+function startBatchEdit(){if(!batchIds.length){toast('请先勾选产品');return}renderBatchUnits();document.getElementById('batch-modal').style.display='flex'}
+function closeBatchModal(){document.getElementById('batch-modal').style.display='none'}
+async function saveBatch(){
+  var cats=document.getElementById('batch-cat').value.trim(),safety=document.getElementById('batch-safety').value;
+  var unitRows=document.querySelectorAll('#batch-units .unit-row');
+  var units=[];unitRows.forEach(r=>{var u=r.querySelector('.unit-name').value.trim(),w=parseFloat(r.querySelector('.unit-wt').value)||0;if(u)units.push({unit:u,weight:w})});
+  batchIds.forEach(id=>{var p=data.prods.find(x=>x.id===id);if(!p)return;if(cats)p.cat=cats;if(units.length)p.units=units;if(safety)p.safety=parseFloat(safety)});
+  if(cats&&!data.categories.includes(cats))data.categories.push(cats);
+  await saveData();closeBatchModal();clearBatch();render_products();render_dashboard();toast('批量修改完成')
+}
+function renderBatchUnits(){var div=document.getElementById('batch-units');div.innerHTML='<button class="btn btn-outline btn-sm" style="width:100%" onclick="addBatchUnitRow()">+ 添加单位</button>'}
+
+function showProdModal(pid){
+  _editPid=pid||null;document.getElementById('prod-modal').style.display='flex';
+  document.getElementById('prod-model').value='';document.getElementById('prod-color').value='';document.getElementById('prod-cat').value='';document.getElementById('prod-safety').value='';
+  var unitsDiv=document.getElementById('prod-units');unitsDiv.innerHTML='';
+  if(pid){var p=P(pid);document.getElementById('prod-modal-title').textContent='编辑产品';document.getElementById('prod-cat').value=p.cat;document.getElementById('prod-model').value=p.model;document.getElementById('prod-color').value=p.color;document.getElementById('prod-safety').value=p.safety||'';(p.units||[]).forEach(u=>addUnitRow(u))}else{document.getElementById('prod-modal-title').textContent='添加产品'}
+  if(!document.getElementById('prod-units').querySelector('.unit-row'))addUnitRow()
+}
+function closeProdModal(){document.getElementById('prod-modal').style.display='none'}
+function addUnitRow(values){var d=document.getElementById('prod-units'),i=d.querySelectorAll('.unit-row').length,div=document.createElement('div');div.className='unit-row';div.innerHTML='<span style="font-size:12px;color:#999">单位'+ (i+1)+'</span><input class="unit-name" placeholder="单位名" value="'+(values?values.unit||'':'')+'" style="width:60px"><span> = </span><input class="unit-wt" placeholder="重量(kg)" value="'+(values?values.weight||'':'')+'" type="number" step="0.001" style="width:80px"><span>kg</span><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove()">✕</button>';d.insertBefore(div,d.querySelector('button'))}
+function addBatchUnitRow(){addUnitRow()}
+
+async function saveProd(){
+  var cat=document.getElementById('prod-cat').value.trim(),model=document.getElementById('prod-model').value.trim(),color=document.getElementById('prod-color').value.trim(),safety=parseFloat(document.getElementById('prod-safety').value)||0;
+  if(!cat||!model){toast('品类和型号必填');return}
+  var unitRows=document.querySelectorAll('#prod-units .unit-row'),units=[];unitRows.forEach(r=>{var u=r.querySelector('.unit-name').value.trim(),w=parseFloat(r.querySelector('.unit-wt').value)||0;if(u)units.push({unit:u,weight:w})});
+  if(cat&&!data.categories.includes(cat))data.categories.push(cat);
+  if(_editPid){var p=data.prods.find(x=>x.id===_editPid);p.cat=cat;p.model=model;p.color=color;p.units=units;p.safety=safety}
+  else{data.prods.push({id:data.pid++,cat,model,color,units,safety})}
+  await saveData();closeProdModal();render_products();render_dashboard()
+}
+async function delProd(id){if(!confirm('确定删除？出入库记录会保留但无法显示产品名'))return;data.prods=data.prods.filter(p=>p.id!==id);await saveData();render_products();render_dashboard()}
+
+// ==== 导出 ====
+function exportCSV(type){
+  var txns=data.txns.filter(t=>!type||t.type===type),header=['日期','类型','品类','型号','颜色','数量','单位','kg','单价','金额','客户','经办人','备注'];
+  if(type==='out')header.splice(7,0,'出库类型');header.splice(7,header.indexOf('kg')-7+1);
+  header=['日期','类型','品类','型号','颜色','数量','单位','kg','单价','金额','客户','经办人','备注'];
+  var rows=[header];txns.forEach(t=>{var p=P(t.pid);rows.push([t.date,t.type==='in'?'入库':(t.outType||'出库'),p?p.cat:'',p?p.model:'',p?p.color:'',t.qty,t.unit||'',t.kg.toFixed(2),t.price||'',t.amt||'',t.customer||'',t.operator||'',t.notes||''])});
+  var csv='\uFEFF'+rows.map(r=>r.join(',')).join('\n'),b=new Blob([csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b);
+  var a=document.createElement('a');a.href=u;a.download=(type==='in'?'入库':'出库')+'记录_'+today()+'.csv';a.click();URL.revokeObjectURL(u)
+}
+function exportProductsCSV(){
+  var rows=[['品类','型号','颜色','包装单位','库存','总kg','安全库存']];data.prods.forEach(p=>{rows.push([p.cat,p.model,p.color,(p.units||[]).map(u=>'1'+u.unit+'='+u.weight+'kg').join('→'),stockQty(p.id).toFixed(2),stockKg(p.id).toFixed(2),p.safety])});
+  var csv='\uFEFF'+rows.map(r=>r.join(',')).join('\n'),b=new Blob([csv],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b);
+  var a=document.createElement('a');a.href=u;a.download='产品库存_'+today()+'.csv';a.click();URL.revokeObjectURL(u)
+}
+function backupData(){window.open(API.replace('/data','/backup'),'_blank')}
+
+// ==== 导入 ====
+function showImport(){document.getElementById('import-file').click()}
+
+document.addEventListener('click',function(e){if(!e.target.closest('.sel-search')){document.querySelectorAll('.sel-dropdown').forEach(d=>d.classList.remove('show'))}});
+
+async function start(){
+  await fetchData();
+  if(data.categories.length===0)data.categories=['普通毛线','蛋糕线','冰条线(一团)','冰条线(两团)','冰条线(三团)','冰条线(四团)','羊毛线','抹布'];
+  init();
+}
+start();
+</script>
+</body>
+</html>

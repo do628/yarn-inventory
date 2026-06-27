@@ -1,0 +1,8 @@
+{
+  "name": "yarn-inventory",
+  "version": "1.0.0",
+  "description": "毛线库存管理系统",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "express": "^4.18.2" }
+}
